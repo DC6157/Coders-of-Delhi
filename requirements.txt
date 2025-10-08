@@ -1,4 +1,1 @@
-streamlit
-pandas
-numpy
-scikit-learn
+streamlit==1.39.0
