@@ -1,88 +1,110 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
+import json
 
-# ------------------------------------------------------
-# 🧠 App Configuration
-# ------------------------------------------------------
-st.set_page_config(
-    page_title="Coder of Delhi | ML Predictor",
-    page_icon="🤖",
-    layout="wide"
-)
+# -------------------------------
+# Utility Functions
+# -------------------------------
+def load_data(filename):
+    """Load JSON data from file"""
+    with open(filename, "r") as file:
+        return json.load(file)
 
-# ------------------------------------------------------
-# 🏷️ App Title and Description
-# ------------------------------------------------------
-st.title("🚀 Coder of Delhi – Machine Learning Web App")
-st.markdown("""
-Welcome to **Coder of Delhi**, an interactive machine learning platform.  
-Upload your dataset, train a model, and make predictions — all in one place!
-""")
+def clean_data(data):
+    """Clean users and pages"""
+    data["users"] = [user for user in data["users"] if user["name"].strip()]
+    for user in data["users"]:
+        user["friends"] = list(set(user["friends"]))
+    data["users"] = [user for user in data["users"] if user["friends"] or user["liked_pages"]]
 
-# ------------------------------------------------------
-# 📂 Data Upload Section
-# ------------------------------------------------------
-st.header("1️⃣ Upload Dataset")
-uploaded_file = st.file_uploader("Upload a CSV file", type=["csv"])
+    unique_pages = {}
+    for page in data["pages"]:
+        unique_pages[page["id"]] = page
+    data["pages"] = list(unique_pages.values())
 
-if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
-    st.success("✅ File uploaded successfully!")
-    st.dataframe(df.head())
+    return data
 
-    # ------------------------------------------------------
-    # ⚙️ Model Training Section
-# ------------------------------------------------------
-    st.header("2️⃣ Train Your Model")
-    all_columns = df.columns.tolist()
-    target = st.selectbox("🎯 Select Target Column", all_columns)
-    features = st.multiselect("🧩 Select Feature Columns", [col for col in all_columns if col != target])
+def find_people_you_may_know(user_id, data):
+    """Recommend friends based on mutual connections"""
+    user_friends = {u["id"]: set(u["friends"]) for u in data["users"]}
+    if user_id not in user_friends:
+        return []
 
-    if st.button("Train Model"):
-        if not features:
-            st.warning("⚠️ Please select at least one feature column before training.")
+    direct_friends = user_friends[user_id]
+    suggestions = {}
+    for friend in direct_friends:
+        for mutual in user_friends.get(friend, []):
+            if mutual != user_id and mutual not in direct_friends:
+                suggestions[mutual] = suggestions.get(mutual, 0) + 1
+
+    sorted_suggestions = sorted(suggestions.items(), key=lambda x: x[1], reverse=True)
+    return [uid for uid, _ in sorted_suggestions]
+
+def find_pages_you_might_like(user_id, data):
+    """Recommend pages based on shared interests"""
+    user_pages = {u["id"]: set(u["liked_pages"]) for u in data["users"]}
+    if user_id not in user_pages:
+        return []
+
+    liked_pages = user_pages[user_id]
+    suggestions = {}
+    for other_user, pages in user_pages.items():
+        if other_user != user_id:
+            shared = liked_pages.intersection(pages)
+            for page in pages:
+                if page not in liked_pages:
+                    suggestions[page] = suggestions.get(page, 0) + len(shared)
+
+    sorted_pages = sorted(suggestions.items(), key=lambda x: x[1], reverse=True)
+    return [pid for pid, _ in sorted_pages]
+
+# -------------------------------
+# Streamlit App UI
+# -------------------------------
+st.set_page_config(page_title="Coders of Delhi", page_icon="💻", layout="wide")
+
+st.title("💻 Coders of Delhi")
+st.subheader("A Pure Python Social Network Simulation")
+
+# Upload JSON data
+uploaded_file = st.file_uploader("📂 Upload your data file (e.g., massive_data.json)", type=["json"])
+
+if uploaded_file:
+    data = json.load(uploaded_file)
+    data = clean_data(data)
+
+    # Select User
+    user_names = {user["name"]: user["id"] for user in data["users"]}
+    user_choice = st.selectbox("👤 Choose a User", list(user_names.keys()))
+    user_id = user_names[user_choice]
+
+    st.markdown("---")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.subheader("🤝 People You May Know")
+        friend_recs = find_people_you_may_know(user_id, data)
+        if friend_recs:
+            for fid in friend_recs:
+                friend = next((u for u in data["users"] if u["id"] == fid), None)
+                if friend:
+                    st.write(f"👤 **{friend['name']}** (ID: {fid})")
         else:
-            X = df[features]
-            y = df[target]
+            st.info("No friend recommendations found.")
 
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    with col2:
+        st.subheader("📄 Pages You Might Like")
+        page_recs = find_pages_you_might_like(user_id, data)
+        if page_recs:
+            for pid in page_recs:
+                page = next((p for p in data["pages"] if p["id"] == pid), None)
+                if page:
+                    st.write(f"📘 **{page['name']}** (Page ID: {pid})")
+        else:
+            st.info("No page recommendations found.")
 
-            model = RandomForestClassifier()
-            model.fit(X_train, y_train)
-            accuracy = model.score(X_test, y_test)
-
-            st.success(f"✅ Model Trained Successfully! Accuracy: **{accuracy:.2f}**")
-
-            # ------------------------------------------------------
-            # 🔮 Prediction Section
-            # ------------------------------------------------------
-            st.header("3️⃣ Make Predictions")
-            st.write("Enter feature values below to make a prediction:")
-
-            input_data = {}
-            for feature in features:
-                value = st.number_input(
-                    f"Enter value for {feature}",
-                    float(df[feature].min()),
-                    float(df[feature].max()),
-                    float(df[feature].mean())
-                )
-                input_data[feature] = value
-
-            if st.button("Predict"):
-                input_df = pd.DataFrame([input_data])
-                prediction = model.predict(input_df)[0]
-                st.success(f"🎯 Predicted Result: **{prediction}**")
+    st.markdown("---")
+    st.success("✅ Analysis complete! Explore recommendations above.")
 
 else:
-    st.info("👆 Upload a dataset above to get started!")
-
-# ------------------------------------------------------
-# 🧾 Footer
-# ------------------------------------------------------
-st.markdown("---")
-st.caption("🧠 Project by **Coder of Delhi** | Built with ❤️ using Streamlit")
-
+    st.info("Please upload a valid JSON dataset to get started.")
