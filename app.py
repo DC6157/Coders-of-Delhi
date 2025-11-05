@@ -95,22 +95,54 @@ st.markdown("""
 # --- Load Data Function ---
 @st.cache_data
 def load_data(filename):
-    if isinstance(filename, str):
-        if filename.endswith(".json"):
-            with open(filename, "r") as f:
-                return json.load(f)
-        elif filename.endswith(".csv"):
-            return pd.read_csv(filename).to_dict(orient="records")
-    else:
-        if filename.name.endswith(".json"):
-            return json.load(filename)
-        elif filename.name.endswith(".csv"):
-            return pd.read_csv(filename).to_dict(orient="records")
+    try:
+        if isinstance(filename, str):
+            if filename.endswith(".json"):
+                with open(filename, "r") as f:
+                    data = json.load(f)
+            elif filename.endswith(".csv"):
+                data = pd.read_csv(filename).to_dict(orient="records")
+        else:
+            if filename.name.endswith(".json"):
+                data = json.load(filename)
+            elif filename.name.endswith(".csv"):
+                data = pd.read_csv(filename).to_dict(orient="records")
+        
+        # Handle different data structures
+        if isinstance(data, dict):
+            # If data is a dict with a list inside
+            for key in data.keys():
+                if isinstance(data[key], list):
+                    return data[key]
+            # If data is a single record
+            return [data]
+        elif isinstance(data, list):
+            return data
+        else:
+            return []
+    except Exception as e:
+        st.error(f"Error loading file: {str(e)}")
+        return []
 
 # --- Clean Data ---
 def clean_data(data):
-    data = [user for user in data if isinstance(user, dict) and user.get("name", "").strip()]
-    return data
+    if not data:
+        return []
+    
+    # If data doesn't have 'name' field, try to use first column as name
+    cleaned = []
+    for user in data:
+        if isinstance(user, dict):
+            # Check if 'name' exists, if not use first available field
+            if "name" not in user and len(user) > 0:
+                first_key = list(user.keys())[0]
+                user["name"] = user.get(first_key, "Unknown")
+            
+            # Only keep records with some data
+            if user.get("name", "").strip():
+                cleaned.append(user)
+    
+    return cleaned
 
 # --- Analyze Data ---
 def analyze_data(data):
@@ -184,6 +216,47 @@ if uploaded_file is not None:
     
     if not data:
         st.error("❌ No valid data found in the uploaded file.")
+        
+        # Debug information
+        with st.expander("🔍 Debug Information - Click to see what went wrong"):
+            st.write("**File Name:**", uploaded_file.name)
+            st.write("**File Type:**", uploaded_file.type)
+            st.write("**File Size:**", uploaded_file.size, "bytes")
+            
+            # Try to show raw data
+            try:
+                uploaded_file.seek(0)
+                if uploaded_file.name.endswith('.json'):
+                    raw_data = json.load(uploaded_file)
+                    st.write("**Raw JSON Data:**")
+                    st.json(raw_data)
+                elif uploaded_file.name.endswith('.csv'):
+                    uploaded_file.seek(0)
+                    raw_df = pd.read_csv(uploaded_file)
+                    st.write("**Raw CSV Data:**")
+                    st.dataframe(raw_df.head())
+                    st.write("**Columns:**", list(raw_df.columns))
+            except Exception as e:
+                st.error(f"Could not read file: {str(e)}")
+            
+            st.info("""
+            **Expected Data Format:**
+            
+            **For JSON:**
+            ```json
+            [
+                {"name": "John", "id": "123", "skills": "Python,JS"},
+                {"name": "Jane", "id": "124", "skills": "React,Node"}
+            ]
+            ```
+            
+            **For CSV:**
+            ```
+            name,id,skills
+            John,123,"Python,JS"
+            Jane,124,"React,Node"
+            ```
+            """)
         st.stop()
     
     df, stats = analyze_data(data)
