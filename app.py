@@ -1,8 +1,6 @@
 import streamlit as st
 import json
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 from datetime import datetime
 
 # --- Page Configuration ---
@@ -19,10 +17,67 @@ st.markdown("""
     .main {
         padding: 0rem 1rem;
     }
-    .stMetric {
+    .metric-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        margin: 10px 0;
+    }
+    .metric-value {
+        font-size: 2.5em;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    .metric-label {
+        font-size: 1.1em;
+        opacity: 0.9;
+    }
+    .user-card {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 4px solid #667eea;
+        margin: 10px 0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .skill-badge {
+        display: inline-block;
+        background-color: #667eea;
+        color: white;
+        padding: 5px 15px;
+        border-radius: 20px;
+        margin: 5px;
+        font-size: 0.9em;
+    }
+    .stat-box {
         background-color: #f0f2f6;
         padding: 15px;
+        border-radius: 8px;
+        margin: 10px 0;
+        border: 2px solid #e0e0e0;
+    }
+    h1 {
+        color: #667eea;
+        padding-bottom: 20px;
+        text-align: center;
+    }
+    .highlight-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 30px;
+        border-radius: 15px;
+        color: white;
+        margin: 20px 0;
+        text-align: center;
+    }
+    .feature-box {
+        background-color: #f8f9fa;
+        padding: 20px;
         border-radius: 10px;
+        text-align: center;
+        height: 150px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
     .stTabs [data-baseweb="tab-list"] {
@@ -32,17 +87,7 @@ st.markdown("""
         padding: 10px 20px;
         background-color: #f0f2f6;
         border-radius: 5px;
-    }
-    h1 {
-        color: #1f77b4;
-        padding-bottom: 20px;
-    }
-    .highlight-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 20px;
-        border-radius: 10px;
-        color: white;
-        margin: 10px 0;
+        font-weight: 500;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -74,19 +119,41 @@ def analyze_data(data):
     stats = {
         "total_users": len(df),
         "active_users": len(df[df.get("status", "active") == "active"]) if "status" in df.columns else len(df),
-        "total_projects": df["projects"].sum() if "projects" in df.columns else 0,
+        "total_projects": int(df["projects"].sum()) if "projects" in df.columns else 0,
         "avg_experience": round(df["experience"].mean(), 1) if "experience" in df.columns else 0
     }
     
     return df, stats
 
+# --- Create Simple Charts ---
+def create_bar_chart(data_dict, title):
+    st.markdown(f"**{title}**")
+    max_val = max(data_dict.values()) if data_dict else 1
+    
+    for label, value in sorted(data_dict.items(), key=lambda x: x[1], reverse=True):
+        percentage = (value / max_val) * 100
+        st.markdown(f"""
+            <div style="margin: 10px 0;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                    <span>{label}</span>
+                    <span><b>{value}</b></span>
+                </div>
+                <div style="background-color: #e0e0e0; border-radius: 5px; height: 25px; overflow: hidden;">
+                    <div style="background: linear-gradient(90deg, #667eea 0%, #764ba2 100%); 
+                                width: {percentage}%; height: 100%; border-radius: 5px;"></div>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
 # --- Main App ---
 st.title("👨‍💻 Coders of Delhi Dashboard")
-st.markdown("### 📊 Comprehensive Analytics & Insights")
+st.markdown("<p style='text-align: center; font-size: 1.2em; color: #666;'>📊 Comprehensive Analytics & Insights</p>", unsafe_allow_html=True)
 
 # --- Sidebar ---
 with st.sidebar:
-    st.image("https://img.icons8.com/fluency/96/code.png", width=80)
+    st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
+    st.markdown("# 💻")
+    st.markdown("</div>", unsafe_allow_html=True)
     st.markdown("## 🎯 Controls")
     
     uploaded_file = st.file_uploader(
@@ -101,6 +168,13 @@ with st.sidebar:
     
     if uploaded_file:
         st.success("✅ File uploaded successfully!")
+    
+    st.markdown("---")
+    st.markdown("### 📚 Features")
+    st.markdown("- 👥 User Management")
+    st.markdown("- 📊 Data Analytics")
+    st.markdown("- 🔍 Advanced Search")
+    st.markdown("- 💾 Export Options")
 
 # --- Main Content ---
 if uploaded_file is not None:
@@ -119,32 +193,39 @@ if uploaded_file is not None:
     col1, col2, col3, col4 = st.columns(4)
     
     with col1:
-        st.metric(
-            label="👥 Total Users",
-            value=stats["total_users"],
-            delta="Active"
-        )
+        st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">👥 Total Users</div>
+                <div class="metric-value">{stats["total_users"]}</div>
+            </div>
+        """, unsafe_allow_html=True)
     
     with col2:
-        st.metric(
-            label="✅ Active Users",
-            value=stats["active_users"],
-            delta=f"{round(stats['active_users']/stats['total_users']*100)}%"
-        )
+        percentage = round(stats['active_users']/stats['total_users']*100) if stats['total_users'] > 0 else 0
+        st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">✅ Active Users</div>
+                <div class="metric-value">{stats["active_users"]}</div>
+                <div style="font-size: 0.9em;">{percentage}% Active</div>
+            </div>
+        """, unsafe_allow_html=True)
     
     with col3:
-        st.metric(
-            label="💼 Total Projects",
-            value=stats["total_projects"],
-            delta="Completed"
-        )
+        st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">💼 Total Projects</div>
+                <div class="metric-value">{stats["total_projects"]}</div>
+            </div>
+        """, unsafe_allow_html=True)
     
     with col4:
-        st.metric(
-            label="⭐ Avg Experience",
-            value=f"{stats['avg_experience']} yrs",
-            delta="Years"
-        )
+        st.markdown(f"""
+            <div class="metric-card">
+                <div class="metric-label">⭐ Avg Experience</div>
+                <div class="metric-value">{stats["avg_experience"]}</div>
+                <div style="font-size: 0.9em;">Years</div>
+            </div>
+        """, unsafe_allow_html=True)
     
     st.markdown("---")
     
@@ -152,21 +233,36 @@ if uploaded_file is not None:
     tab1, tab2, tab3, tab4 = st.tabs(["📊 Overview", "👤 User Details", "📈 Analytics", "🔍 Search"])
     
     with tab1:
-        col1, col2 = st.columns(2)
+        st.markdown("### 📋 Data Overview")
+        
+        col1, col2 = st.columns([3, 2])
         
         with col1:
-            st.markdown("### 📋 User List")
-            st.dataframe(
-                df[["name", "id"]].head(10) if "id" in df.columns else df[["name"]].head(10),
-                use_container_width=True,
-                height=400
-            )
+            st.markdown("#### User List")
+            # Display user table
+            display_df = df[["name", "id"]].head(15) if "id" in df.columns else df[["name"]].head(15)
+            st.dataframe(display_df, use_container_width=True, height=400)
+            
+            # Pagination info
+            total_users = len(df)
+            if total_users > 15:
+                st.info(f"Showing 15 of {total_users} users")
         
         with col2:
-            st.markdown("### 📊 Quick Stats")
+            st.markdown("#### Quick Statistics")
+            
+            # Column statistics
+            st.markdown(f"""
+                <div class="stat-box">
+                    <strong>📊 Data Columns:</strong> {len(df.columns)}<br>
+                    <strong>📝 Total Records:</strong> {len(df)}<br>
+                    <strong>🔢 Numeric Fields:</strong> {len(df.select_dtypes(include=['number']).columns)}
+                </div>
+            """, unsafe_allow_html=True)
             
             # Skills distribution
             if "skills" in df.columns:
+                st.markdown("#### 🎯 Top Skills")
                 all_skills = []
                 for skills in df["skills"].dropna():
                     if isinstance(skills, list):
@@ -175,24 +271,15 @@ if uploaded_file is not None:
                         all_skills.extend([s.strip() for s in skills.split(",")])
                 
                 if all_skills:
-                    skill_counts = pd.Series(all_skills).value_counts().head(10)
-                    fig = px.bar(
-                        x=skill_counts.values,
-                        y=skill_counts.index,
-                        orientation='h',
-                        title="Top 10 Skills",
-                        labels={'x': 'Count', 'y': 'Skill'},
-                        color=skill_counts.values,
-                        color_continuous_scale='Viridis'
-                    )
-                    fig.update_layout(height=400, showlegend=False)
-                    st.plotly_chart(fig, use_container_width=True)
+                    skill_counts = pd.Series(all_skills).value_counts().head(8)
+                    skill_dict = skill_counts.to_dict()
+                    create_bar_chart(skill_dict, "")
     
     with tab2:
         st.markdown("### 👤 User Information")
         
         user_names = {user["name"]: user for user in data}
-        selected_user = st.selectbox("Select a user:", list(user_names.keys()))
+        selected_user = st.selectbox("🔍 Select a user:", [""] + list(user_names.keys()))
         
         if selected_user:
             user_info = user_names[selected_user]
@@ -200,88 +287,142 @@ if uploaded_file is not None:
             col1, col2 = st.columns([2, 1])
             
             with col1:
-                st.markdown(f"#### {selected_user}")
+                st.markdown(f"<h3 style='color: #667eea;'>👤 {selected_user}</h3>", unsafe_allow_html=True)
+                
+                # Display user info in a card
+                info_html = "<div class='user-card'>"
                 for key, value in user_info.items():
                     if key != "name":
-                        st.write(f"**{key.title()}:** {value}")
+                        if key == "skills" and isinstance(value, (list, str)):
+                            skills_list = value if isinstance(value, list) else value.split(",")
+                            info_html += f"<p><strong>🎯 {key.title()}:</strong><br>"
+                            for skill in skills_list:
+                                info_html += f"<span class='skill-badge'>{skill.strip()}</span>"
+                            info_html += "</p>"
+                        else:
+                            info_html += f"<p><strong>{key.title()}:</strong> {value}</p>"
+                info_html += "</div>"
+                st.markdown(info_html, unsafe_allow_html=True)
             
             with col2:
-                st.markdown("#### Quick Actions")
+                st.markdown("#### ⚡ Quick Actions")
+                
                 if st.button("📧 Send Email", use_container_width=True):
-                    st.info("Email feature coming soon!")
-                if st.button("💬 Message", use_container_width=True):
-                    st.info("Messaging feature coming soon!")
-                if st.button("📊 View Profile", use_container_width=True):
-                    st.info("Profile view coming soon!")
+                    st.success("📧 Email feature coming soon!")
+                
+                if st.button("💬 Send Message", use_container_width=True):
+                    st.success("💬 Messaging feature coming soon!")
+                
+                if st.button("📊 View Full Profile", use_container_width=True):
+                    st.success("📊 Full profile view coming soon!")
+                
+                if st.button("🔗 Share Profile", use_container_width=True):
+                    st.success("🔗 Share feature coming soon!")
+        else:
+            st.info("👆 Please select a user to view details")
     
     with tab3:
-        st.markdown("### 📈 Advanced Analytics")
+        st.markdown("### 📈 Data Analytics")
         
         col1, col2 = st.columns(2)
         
         with col1:
             # Experience distribution
             if "experience" in df.columns:
-                fig = px.histogram(
-                    df,
-                    x="experience",
-                    nbins=20,
-                    title="Experience Distribution",
-                    labels={'experience': 'Years of Experience', 'count': 'Number of Users'},
-                    color_discrete_sequence=['#667eea']
-                )
-                fig.update_layout(height=350)
-                st.plotly_chart(fig, use_container_width=True)
+                st.markdown("#### 💼 Experience Distribution")
+                exp_bins = pd.cut(df["experience"], bins=[0, 2, 5, 10, 20, 100], 
+                                 labels=["0-2 yrs", "3-5 yrs", "6-10 yrs", "11-20 yrs", "20+ yrs"])
+                exp_counts = exp_bins.value_counts().sort_index()
+                create_bar_chart(exp_counts.to_dict(), "")
         
         with col2:
             # Project distribution
             if "projects" in df.columns:
-                fig = px.box(
-                    df,
-                    y="projects",
-                    title="Projects Distribution",
-                    labels={'projects': 'Number of Projects'},
-                    color_discrete_sequence=['#764ba2']
-                )
-                fig.update_layout(height=350)
-                st.plotly_chart(fig, use_container_width=True)
+                st.markdown("#### 📦 Projects Distribution")
+                proj_stats = {
+                    "Min Projects": int(df["projects"].min()),
+                    "Max Projects": int(df["projects"].max()),
+                    "Median Projects": int(df["projects"].median()),
+                    "Total Projects": int(df["projects"].sum())
+                }
+                
+                for label, value in proj_stats.items():
+                    st.markdown(f"""
+                        <div class="stat-box">
+                            <strong>{label}:</strong> {value}
+                        </div>
+                    """, unsafe_allow_html=True)
         
-        # Correlation heatmap
-        if "experience" in df.columns and "projects" in df.columns:
-            st.markdown("### 🔥 Correlation Analysis")
-            numeric_cols = df.select_dtypes(include=['number']).columns
-            if len(numeric_cols) > 1:
-                corr = df[numeric_cols].corr()
-                fig = px.imshow(
-                    corr,
-                    text_auto=True,
-                    aspect="auto",
-                    title="Correlation Heatmap",
-                    color_continuous_scale='RdBu'
-                )
-                fig.update_layout(height=400)
-                st.plotly_chart(fig, use_container_width=True)
+        st.markdown("---")
+        
+        # Additional statistics
+        col3, col4 = st.columns(2)
+        
+        with col3:
+            if "status" in df.columns:
+                st.markdown("#### 📊 Status Distribution")
+                status_counts = df["status"].value_counts().to_dict()
+                create_bar_chart(status_counts, "")
+        
+        with col4:
+            # Data quality metrics
+            st.markdown("#### ✅ Data Quality")
+            missing_data = df.isnull().sum()
+            completeness = ((len(df) - missing_data) / len(df) * 100).round(1)
+            
+            st.markdown("""
+                <div class="stat-box">
+                    <strong>📋 Data Completeness</strong>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            for col_name in df.columns[:5]:
+                comp_pct = completeness[col_name]
+                st.markdown(f"{col_name}: {comp_pct}%")
+                st.progress(comp_pct / 100)
     
     with tab4:
         st.markdown("### 🔍 Advanced Search")
         
-        search_term = st.text_input("Search by name, skill, or any field:", placeholder="Type here...")
+        col1, col2 = st.columns([3, 1])
+        
+        with col1:
+            search_term = st.text_input(
+                "Search by name, skill, or any field:",
+                placeholder="Type here to search...",
+                key="search"
+            )
+        
+        with col2:
+            search_field = st.selectbox(
+                "Search in:",
+                ["All Fields"] + list(df.columns)
+            )
         
         if search_term:
-            filtered_data = [
-                user for user in data
-                if any(search_term.lower() in str(value).lower() for value in user.values())
-            ]
+            if search_field == "All Fields":
+                filtered_data = [
+                    user for user in data
+                    if any(search_term.lower() in str(value).lower() for value in user.values())
+                ]
+            else:
+                filtered_data = [
+                    user for user in data
+                    if search_term.lower() in str(user.get(search_field, "")).lower()
+                ]
             
-            st.markdown(f"#### Found {len(filtered_data)} results")
+            st.markdown(f"#### 🎯 Found {len(filtered_data)} results")
             
             if filtered_data:
-                for user in filtered_data:
-                    with st.expander(f"👤 {user.get('name', 'Unknown')}"):
+                for i, user in enumerate(filtered_data, 1):
+                    with st.expander(f"👤 {i}. {user.get('name', 'Unknown')}"):
+                        user_html = "<div class='user-card'>"
                         for key, value in user.items():
-                            st.write(f"**{key.title()}:** {value}")
+                            user_html += f"<p><strong>{key.title()}:</strong> {value}</p>"
+                        user_html += "</div>"
+                        st.markdown(user_html, unsafe_allow_html=True)
             else:
-                st.warning("No results found!")
+                st.warning("⚠️ No results found for your search!")
         else:
             st.info("👆 Enter a search term to filter users")
     
@@ -289,12 +430,12 @@ if uploaded_file is not None:
     st.markdown("---")
     st.markdown("### 💾 Export Data")
     
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         csv = df.to_csv(index=False).encode('utf-8')
         st.download_button(
-            label="📥 Download as CSV",
+            label="📥 Download CSV",
             data=csv,
             file_name=f"coders_data_{datetime.now().strftime('%Y%m%d')}.csv",
             mime="text/csv",
@@ -304,10 +445,32 @@ if uploaded_file is not None:
     with col2:
         json_str = json.dumps(data, indent=2)
         st.download_button(
-            label="📥 Download as JSON",
+            label="📥 Download JSON",
             data=json_str,
             file_name=f"coders_data_{datetime.now().strftime('%Y%m%d')}.json",
             mime="application/json",
+            use_container_width=True
+        )
+    
+    with col3:
+        # Summary report
+        summary = f"""
+        📊 CODERS OF DELHI - DATA SUMMARY
+        ================================
+        
+        Total Users: {stats['total_users']}
+        Active Users: {stats['active_users']}
+        Total Projects: {stats['total_projects']}
+        Average Experience: {stats['avg_experience']} years
+        
+        Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        """
+        
+        st.download_button(
+            label="📄 Download Summary",
+            data=summary,
+            file_name=f"summary_{datetime.now().strftime('%Y%m%d')}.txt",
+            mime="text/plain",
             use_container_width=True
         )
 
@@ -316,29 +479,62 @@ else:
     st.markdown("""
         <div class="highlight-card">
             <h2>🎉 Welcome to Coders of Delhi Dashboard!</h2>
-            <p>Upload your data file to get started with comprehensive analytics and insights.</p>
+            <p style="font-size: 1.2em;">Upload your data file to unlock powerful analytics and insights.</p>
+            <p>Supported formats: CSV, JSON</p>
         </div>
     """, unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.markdown("### 📊 Analytics")
-        st.write("View detailed statistics and visualizations")
+        st.markdown("""
+            <div class="feature-box">
+                <h3>📊</h3>
+                <h4>Analytics</h4>
+                <p>View detailed statistics and visualizations</p>
+            </div>
+        """, unsafe_allow_html=True)
     
     with col2:
-        st.markdown("### 👥 User Management")
-        st.write("Search and manage user profiles")
+        st.markdown("""
+            <div class="feature-box">
+                <h3>👥</h3>
+                <h4>User Management</h4>
+                <p>Search and manage user profiles</p>
+            </div>
+        """, unsafe_allow_html=True)
     
     with col3:
-        st.markdown("### 📈 Insights")
-        st.write("Gain insights from your data")
+        st.markdown("""
+            <div class="feature-box">
+                <h3>📈</h3>
+                <h4>Insights</h4>
+                <p>Gain insights from your data</p>
+            </div>
+        """, unsafe_allow_html=True)
     
-    st.info("👈 Use the sidebar to upload your CSV or JSON file")
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.info("👈 Use the sidebar to upload your CSV or JSON file to get started!")
+    
+    # Sample data format
+    with st.expander("📝 Sample Data Format"):
+        st.code("""
+{
+  "name": "John Doe",
+  "id": "user123",
+  "email": "john@example.com",
+  "skills": ["Python", "JavaScript", "React"],
+  "experience": 5,
+  "projects": 12,
+  "status": "active"
+}
+        """, language="json")
 
 # --- Footer ---
 st.markdown("---")
 st.markdown(
-    "<div style='text-align: center; color: #666;'>Made with ❤️ for Coders of Delhi | © 2024</div>",
+    "<div style='text-align: center; color: #666; padding: 20px;'>"
+    "Made with ❤️ for Coders of Delhi | © 2024"
+    "</div>",
     unsafe_allow_html=True
 )
